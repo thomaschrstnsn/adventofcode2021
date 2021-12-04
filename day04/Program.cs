@@ -27,23 +27,48 @@ var input = await System.IO.File.ReadAllLinesAsync("input.txt");
 var game = ParseGame(input);
 Console.WriteLine($"part1 result: {SolvePart1(game)}");
 
-
-static BingoGame RunUntilDone(BingoGame game)
-{
-    var completedBoards = game.CompletedBoards;
-    if (completedBoards.Any())
-    {
-        return game;
-    }
-
-    return RunUntilDone(game.MarkNext());
-}
+Console.WriteLine($"part2 test: {SolvePart2(test)}");
+Console.WriteLine($"part2 result: {SolvePart2(game)}");
 
 static int SolvePart1(BingoGame game)
 {
+    static BingoGame RunUntilDone(BingoGame game)
+    {
+        var completedBoards = game.CompletedBoards;
+        if (completedBoards.Any())
+        {
+            return game;
+        }
+
+        return RunUntilDone(game.MarkNext());
+    }
+
     var complete = RunUntilDone(game);
     var winningBoard = complete.CompletedBoards.First();
     return winningBoard.UnmarkedNumbers.Sum() * complete.CurrentNumber;
+}
+
+static int SolvePart2(BingoGame game)
+{
+    static (BingoGame, Board) RunUntilLastBoardDone(BingoGame game)
+    {
+        var incompleteBoards = game.IncompletedBoards;
+        if (incompleteBoards.Count() == 1)
+        {
+            var incomplete = incompleteBoards.Single();
+
+            var next = game.MarkNext();
+            if (!next.IncompletedBoards.Any()) 
+            {
+                var lastState = incomplete.MarkNumber(next.CurrentNumber);
+
+                return (next, lastState);
+            }
+        }
+        return RunUntilLastBoardDone(game.MarkNext());
+    }
+    (var complete, var lastBoard) = RunUntilLastBoardDone(game);
+    return lastBoard.UnmarkedNumbers.Sum() * complete.CurrentNumber;
 }
 
 static RowCells ParseRow(string line) => new RowCells(line
@@ -130,8 +155,10 @@ public record BingoGame(int[] Numbers, Board[] Boards, int Index)
 {
     public int NextNumber => Numbers[Index];
     public int CurrentNumber => Numbers[Index -1];
+    public int PreviousNumber => Numbers[Index -2];
 
     public IEnumerable<Board> CompletedBoards => Boards.Where(b => b.IsComplete);
+    public IEnumerable<Board> IncompletedBoards => Boards.Where(b => !b.IsComplete);
 
     public BingoGame MarkNext() => this with 
         {
